@@ -74,7 +74,8 @@ export type SortOption =
   | 'expiry_desc'
   | 'brand_asc'
   | 'status_order'
-  | 'bank_asc';
+  | 'bank_asc'
+  | 'country_asc';
 
 export type ExportFormat =
   | 'original'

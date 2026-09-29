@@ -10,6 +10,7 @@ import {
   ShieldAlert,
   CreditCard,
   ArrowUpDown,
+  Shuffle,
 } from 'lucide-react';
 import { FilterStatus, Language, SortOption } from '../types/card';
 import { translations } from '../utils/translations';
@@ -36,6 +37,9 @@ interface ActionToolbarProps {
   onSortChange: (s: SortOption) => void;
   isMasked: boolean;
   onToggleMask: () => void;
+  onShuffle: () => void;
+  binFilter: string;
+  onBinFilterChange: (bin: string) => void;
 }
 
 export const ActionToolbar: React.FC<ActionToolbarProps> = ({
@@ -60,6 +64,9 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
   onSortChange,
   isMasked,
   onToggleMask,
+  onShuffle,
+  binFilter,
+  onBinFilterChange,
 }) => {
   const t = translations[language];
 
@@ -158,6 +165,16 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
               <span>{t.resetAllBtn}</span>
             </button>
           )}
+
+          {/* Shuffle Cards */}
+          <button
+            onClick={onShuffle}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200 dark:border-blue-800/60 transition-colors"
+            title={t.shuffleBtn}
+          >
+            <Shuffle className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <span className="hidden sm:inline">{t.shuffleBtn}</span>
+          </button>
         </div>
 
         {/* Mask Toggle */}
@@ -252,6 +269,26 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
 
         {/* Sort & Search Controls */}
         <div className="flex items-center gap-2 w-full md:w-auto">
+          {/* BIN Filter */}
+          <div className="relative">
+            <input
+              type="text"
+              value={binFilter}
+              onChange={(e) => onBinFilterChange(e.target.value.replace(/\D/g, ''))}
+              placeholder={t.binFilterPlaceholder}
+              className="w-28 md:w-36 px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+              maxLength={8}
+            />
+            {binFilter && (
+              <button
+                onClick={() => onBinFilterChange('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
           {/* Sorter */}
           <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 px-2.5 py-1.5 rounded-xl text-xs shrink-0">
             <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
@@ -278,6 +315,9 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
               </option>
               <option value="bank_asc">
                 {language === 'bn' ? 'ব্যাংক: A-Z' : 'Bank: A-Z'}
+              </option>
+              <option value="country_asc">
+                {t.sortCountry}
               </option>
               <option value="status_order">
                 {language === 'bn' ? 'স্ট্যাটাস অনুযায়ী' : 'By Status'}

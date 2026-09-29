@@ -34,6 +34,7 @@ import { CheckCircle2, Shield, Zap, Sparkles, CreditCard } from 'lucide-react';
 export default function App() {
   // Language state (default to Bengali as user requested in Bengali)
   const [language, setLanguage] = useState<Language>('bn');
+  const t = translations[language];
 
   // Reference date state (defaults to current date Sep 2026)
   const [refMonth, setRefMonth] = useState<number>(9);
@@ -52,6 +53,7 @@ export default function App() {
   const [selectedBrandFilter, setSelectedBrandFilter] = useState<string>('all');
   const [sortOption, setSortOption] = useState<SortOption>('none');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [binFilter, setBinFilter] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Modal inspection
@@ -66,8 +68,8 @@ export default function App() {
 
   // Parse cards whenever deferred input text or reference date changes
   const allParsedCards = useMemo(() => {
-    return parseBulkCards(deferredInputText, refYear, refMonth);
-  }, [deferredInputText, refYear, refMonth]);
+    return parseBulkCards(deferredInputText, refYear, refMonth, autoSplitMultiCards);
+  }, [deferredInputText, refYear, refMonth, autoSplitMultiCards]);
 
   // Statistics and Brand Breakdown
   const stats = useMemo(() => {
@@ -141,6 +143,11 @@ export default function App() {
   // Filtered and Sorted cards for table view
   const visibleCards = useMemo(() => {
     const filtered = allParsedCards.filter((card) => {
+      // BIN filter
+      if (binFilter && !card.cardNumber.startsWith(binFilter)) {
+        return false;
+      }
+
       // Brand filter
       if (selectedBrandFilter !== 'all' && card.brand !== selectedBrandFilter) {
         return false;
@@ -185,7 +192,7 @@ export default function App() {
     });
 
     return sortCardRecords(filtered, sortOption);
-  }, [allParsedCards, activeFilter, selectedBrandFilter, searchQuery, sortOption]);
+  }, [allParsedCards, activeFilter, selectedBrandFilter, searchQuery, sortOption, binFilter]);
 
   // Output cards (clean list of active / non-expired and valid cards)
   const cleanedCards = useMemo(() => {
@@ -361,6 +368,14 @@ export default function App() {
     }
   };
 
+  // Action: Shuffle Cards
+  const handleShuffle = () => {
+    if (!originalBackup) setOriginalBackup(inputText);
+    const shuffled = [...allParsedCards].sort(() => Math.random() - 0.5);
+    setInputText(shuffled.map((c) => c.rawLine).join('\n'));
+    showToast(language === 'bn' ? 'কার্ডগুলি এলোমেলো (Shuffle) করা হয়েছে।' : 'Cards randomly shuffled.');
+  };
+
   // Action: Delete Single Card
   const handleDeleteCard = (id: string) => {
     const updated = allParsedCards.filter((c) => c.id !== id);
@@ -413,8 +428,8 @@ export default function App() {
   };
 
   const lineCount = useMemo(() => {
-    return splitInputLines(inputText).length;
-  }, [inputText]);
+    return splitInputLines(inputText, autoSplitMultiCards).length;
+  }, [inputText, autoSplitMultiCards]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white">
@@ -553,6 +568,9 @@ export default function App() {
           onSortChange={setSortOption}
           isMasked={isMasked}
           onToggleMask={() => setIsMasked(!isMasked)}
+          onShuffle={handleShuffle}
+          binFilter={binFilter}
+          onBinFilterChange={setBinFilter}
         />
 
         {/* Interactive Cards Table */}

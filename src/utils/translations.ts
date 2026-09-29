@@ -62,6 +62,9 @@ export interface Translations {
   lengthAlert: string;
   luhnAlert: string;
   cvvAlert: string;
+  sortCountry: string;
+  shuffleBtn: string;
+  binFilterPlaceholder: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -129,6 +132,9 @@ export const translations: Record<Language, Translations> = {
     lengthAlert: 'ডিজিট দৈর্ঘ্যের ত্রুটি',
     luhnAlert: 'লুন অ্যালগরিদম ব্যর্থ',
     cvvAlert: 'CVV দৈর্ঘ্যের অসঙ্গতি',
+    sortCountry: 'দেশ: A-Z',
+    shuffleBtn: 'এলোমেলো করুন (Shuffle)',
+    binFilterPlaceholder: 'BIN ফিল্টার (যেমন 4147)',
   },
   en: {
     appTitle: 'Card Cleaner & Expired Card Remover',
@@ -194,5 +200,8 @@ Supports newline separated lines or multiple cards on a single line separated by
     lengthAlert: 'Digit Length Error',
     luhnAlert: 'Luhn Checksum Failed',
     cvvAlert: 'CVV Length Mismatch',
+    sortCountry: 'Country: A-Z',
+    shuffleBtn: 'Shuffle Cards',
+    binFilterPlaceholder: 'BIN filter (e.g. 4147)',
   },
 };

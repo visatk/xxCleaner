@@ -409,17 +409,23 @@ export function evaluateExpiry(
 /**
  * Splits raw input into individual lines.
  */
-export function splitInputLines(rawText: string): string[] {
+export function splitInputLines(rawText: string, autoSplit: boolean = true): string[] {
   if (!rawText.trim()) return [];
 
-  const rawLines = rawText.split(/\r?\n/);
+  let textToProcess = rawText;
+  if (autoSplit) {
+    const verticalRegex = /(?:(?:CARD|CC|BIN)?[\s:=]*)(\d{13,19})[\s\r\n]+(?:(?:EXP|DATE|VALID)?[\s:=]*)(0?[1-9]|1[0-2])\s*[/|-]\s*(\d{2,4})[\s\r\n]+(?:(?:CVV|CVC|CID|CCV)?[\s:=]*)(\d{3,4})\b/gi;
+    textToProcess = textToProcess.replace(verticalRegex, '$1|$2|$3|$4');
+  }
+
+  const rawLines = textToProcess.split(/\r?\n/);
   const resultLines: string[] = [];
 
   for (const line of rawLines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    if (/\s{2,}(?=\d{13,19}[|/])/.test(trimmed)) {
+    if (autoSplit && /\s{2,}(?=\d{13,19}[|/])/.test(trimmed)) {
       const parts = trimmed.split(/\s{2,}(?=\d{13,19}[|/])/);
       for (const part of parts) {
         if (part.trim()) resultLines.push(part.trim());
@@ -505,10 +511,12 @@ export function parseCardLine(
     parts = sanitized.split('|');
   } else if (sanitized.includes(';') && !sanitized.includes('&')) {
     parts = sanitized.split(';');
-  } else if (sanitized.includes('/') && !sanitized.includes('//')) {
+  } else if (sanitized.includes('/') && !sanitized.includes('//') && sanitized.split('/').length > 2) {
     parts = sanitized.split('/');
   } else if (sanitized.includes(':')) {
     parts = sanitized.split(':');
+  } else if (sanitized.includes(' ') || sanitized.includes('\t')) {
+    parts = sanitized.split(/[\s\t]+/);
   } else {
     parts = [sanitized];
   }
@@ -653,9 +661,10 @@ export function parseCardLine(
 export function parseBulkCards(
   rawText: string,
   refYear: number = 2026,
-  refMonth: number = 9
+  refMonth: number = 9,
+  autoSplit: boolean = true
 ): CardRecord[] {
-  const lines = splitInputLines(rawText);
+  const lines = splitInputLines(rawText, autoSplit);
   const records = lines.map((line) => parseCardLine(line, refYear, refMonth));
 
   // Flag duplicate card numbers
@@ -701,6 +710,9 @@ export function deepExtractCardsFromMessyText(rawText: string): string[] {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&nbsp;/g, ' ');
+
+  const verticalRegex = /(?:(?:CARD|CC|BIN)?[\s:=]*)(\d{13,19})[\s\r\n]+(?:(?:EXP|DATE|VALID)?[\s:=]*)(0?[1-9]|1[0-2])\s*[/|-]\s*(\d{2,4})[\s\r\n]+(?:(?:CVV|CVC|CID|CCV)?[\s:=]*)(\d{3,4})\b/gi;
+  text = text.replace(verticalRegex, '$1|$2|$3|$4');
 
   // 3. Match card patterns:
   // Card number (13-19 digits or with 'xxxx' mask) | Month (1-12) | Year (2-4 digits) | optional CVV | optional extra pipe fields
@@ -983,6 +995,12 @@ export function sortCardRecords(
     case 'bank_asc': {
       return clone.sort((a, b) =>
         (a.metadata.bankName || 'Z').localeCompare(b.metadata.bankName || 'Z')
+      );
+    }
+
+    case 'country_asc': {
+      return clone.sort((a, b) =>
+        (a.metadata.country || 'ZZ').localeCompare(b.metadata.country || 'ZZ')
       );
     }
 
