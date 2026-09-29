@@ -109,12 +109,27 @@ const BIN_DATABASE: Record<
   '6062': { bank: 'Hipercard Banco', type: 'credit', level: 'Hipercard Clássico', country: 'BR' },
 };
 
+const SPACE_DASH_REGEX = /[\s-]/g;
+const NON_DIGIT_REGEX = /[^\d]/;
+const AMEX_REGEX = /^3[47]/;
+const VISA_REGEX = /^4/;
+const MASTERCARD_REGEX = /^(5[1-5]|222[1-9]|22[3-9][0-9]|2[3-6][0-9]{2}|27[01][0-9]|2720)/;
+const DISCOVER_REGEX = /^(6011|65|64[4-9]|622(12[6-9]|1[3-9][0-9]|[2-8][0-9]{2}|9[01][0-9]|92[0-5]))/;
+const JCB_REGEX = /^35(2[89]|[3-8][0-9])/;
+const DINERS_REGEX = /^3(0[0-5]|[68])/;
+const UNIONPAY_REGEX = /^62/;
+const RUPAY_REGEX = /^(60|6521|6522|508)/;
+const MAESTRO_REGEX = /^(5018|5020|5038|5893|6304|6759|676[1-3])/;
+const MIR_REGEX = /^220[0-4]/;
+const ELO_REGEX = /^(4011|4312|4389|4514|4576|5041|5066|5090|6277|6362|6363)/;
+const SPLIT_4_REGEX = /(.{4})/g;
+
 /**
  * Validates Luhn checksum for card numbers without 'x' masks.
  */
 export function checkLuhn(cardNumber: string): boolean | null {
-  const sanitized = cardNumber.replace(/[\s-]/g, '');
-  if (/[^\d]/.test(sanitized)) return null; // Contains 'x' or non-digits, cannot run strict Luhn
+  const sanitized = cardNumber.replace(SPACE_DASH_REGEX, '');
+  if (NON_DIGIT_REGEX.test(sanitized)) return null; // Contains 'x' or non-digits, cannot run strict Luhn
   if (sanitized.length < 12 || sanitized.length > 19) return false;
 
   let sum = 0;
@@ -137,44 +152,19 @@ export function checkLuhn(cardNumber: string): boolean | null {
  * Detects card brand from the card number / BIN with precision.
  */
 export function detectBrand(cardNumber: string): CardBrand {
-  const clean = cardNumber.replace(/[\s-]/g, '');
+  const clean = cardNumber.replace(SPACE_DASH_REGEX, '');
 
-  // American Express: starts with 34 or 37
-  if (/^3[47]/.test(clean)) return 'amex';
-
-  // Visa: starts with 4
-  if (/^4/.test(clean)) return 'visa';
-
-  // Mastercard: 51-55 or 2221-2720
-  if (/^(5[1-5]|222[1-9]|22[3-9][0-9]|2[3-6][0-9]{2}|27[01][0-9]|2720)/.test(clean)) {
-    return 'mastercard';
-  }
-
-  // Discover: 6011, 622126-622925, 644-649, 65
-  if (/^(6011|65|64[4-9]|622(12[6-9]|1[3-9][0-9]|[2-8][0-9]{2}|9[01][0-9]|92[0-5]))/.test(clean)) {
-    return 'discover';
-  }
-
-  // JCB: 3528-3589
-  if (/^35(2[89]|[3-8][0-9])/.test(clean)) return 'jcb';
-
-  // Diners Club: 300-305, 36, 38
-  if (/^3(0[0-5]|[68])/.test(clean)) return 'diners';
-
-  // UnionPay: 62
-  if (/^62/.test(clean)) return 'unionpay';
-
-  // RuPay: 60, 6521, 6522, 508
-  if (/^(60|6521|6522|508)/.test(clean)) return 'rupay';
-
-  // Maestro: 5018, 5020, 5038, 5893, 6304, 6759, 6761, 6762, 6763
-  if (/^(5018|5020|5038|5893|6304|6759|676[1-3])/.test(clean)) return 'maestro';
-
-  // Mir: 2200-2204
-  if (/^220[0-4]/.test(clean)) return 'mir';
-
-  // Elo: Brazil
-  if (/^(4011|4312|4389|4514|4576|5041|5066|5090|6277|6362|6363)/.test(clean)) return 'elo';
+  if (AMEX_REGEX.test(clean)) return 'amex';
+  if (VISA_REGEX.test(clean)) return 'visa';
+  if (MASTERCARD_REGEX.test(clean)) return 'mastercard';
+  if (DISCOVER_REGEX.test(clean)) return 'discover';
+  if (JCB_REGEX.test(clean)) return 'jcb';
+  if (DINERS_REGEX.test(clean)) return 'diners';
+  if (UNIONPAY_REGEX.test(clean)) return 'unionpay';
+  if (RUPAY_REGEX.test(clean)) return 'rupay';
+  if (MAESTRO_REGEX.test(clean)) return 'maestro';
+  if (MIR_REGEX.test(clean)) return 'mir';
+  if (ELO_REGEX.test(clean)) return 'elo';
 
   return 'unknown';
 }
@@ -214,7 +204,7 @@ export function getBrandLengthRules(brand: CardBrand): {
  * Formats card number for display (Amex 4-6-5, standard 4-4-4-4).
  */
 export function formatCardDisplay(cardNumber: string, brand: CardBrand): string {
-  const clean = cardNumber.replace(/[\s-]/g, '');
+  const clean = cardNumber.replace(SPACE_DASH_REGEX, '');
   if (brand === 'amex') {
     // Amex 4-6-5: 3774 810187 65432
     if (clean.length === 15) {
@@ -222,14 +212,14 @@ export function formatCardDisplay(cardNumber: string, brand: CardBrand): string 
     }
   }
   // Standard 4-4-4-4
-  return clean.replace(/(.{4})/g, '$1 ').trim();
+  return clean.replace(SPLIT_4_REGEX, '$1 ').trim();
 }
 
 /**
  * Masks card number for display (e.g. 4622 39•• •••• 8080 or Amex 3774 •••••• 65432)
  */
 export function maskCardNumber(cardNumber: string, brand: CardBrand = 'unknown'): string {
-  const clean = cardNumber.replace(/[\s-]/g, '');
+  const clean = cardNumber.replace(SPACE_DASH_REGEX, '');
   if (clean.length < 12) return cardNumber;
 
   if (brand === 'amex' && clean.length === 15) {
@@ -243,7 +233,7 @@ export function maskCardNumber(cardNumber: string, brand: CardBrand = 'unknown')
   const middleLen = Math.max(0, clean.length - 10);
   const maskedMiddle = '•'.repeat(middleLen);
   const combined = first6 + maskedMiddle + last4;
-  return combined.replace(/(.{4})/g, '$1 ').trim();
+  return combined.replace(SPLIT_4_REGEX, '$1 ').trim();
 }
 
 /**
@@ -299,7 +289,7 @@ export function lookupBinDetails(cardNumber: string): {
   level: string;
   country?: string;
 } {
-  const clean = cardNumber.replace(/[\s-]/g, '');
+  const clean = cardNumber.replace(SPACE_DASH_REGEX, '');
   const bin6 = clean.slice(0, 6);
   const bin4 = clean.slice(0, 4);
   const bin2 = clean.slice(0, 2);

@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { saveParsingHistory } from './utils/firestore';
 import confetti from 'canvas-confetti';
 import { Header } from './components/Header';
 import { StatsCards } from './components/StatsCards';
@@ -29,6 +30,7 @@ import {
 } from './utils/cardParser';
 import { USER_EXACT_SAMPLE } from './utils/sampleData';
 import { translations } from './utils/translations';
+import { fetchBinDetails, BinlistResponse, mapSchemeToBrand } from './utils/binlistApi';
 import { CheckCircle2, Shield, Zap, Sparkles, CreditCard } from 'lucide-react';
 
 export default function App() {
@@ -58,6 +60,10 @@ export default function App() {
 
   // Modal inspection
   const [inspectedCard, setInspectedCard] = useState<CardRecord | null>(null);
+
+  // Live BIN enrichment state
+  const [liveBinData, setLiveBinData] = useState<Record<string, BinlistResponse>>({});
+  const [isEnriching, setIsEnriching] = useState<boolean>(false);
 
   // Flash message
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -95,6 +101,11 @@ export default function App() {
       unknown: 0,
     };
 
+    const binCounts: Record<string, number> = {};
+    const countryCounts: Record<string, number> = {};
+    const bankCounts: Record<string, number> = {};
+    const levelCounts: Record<string, number> = {};
+
     const seenCards = new Set<string>();
     let duplicates = 0;
 
@@ -118,6 +129,22 @@ export default function App() {
         brandCounts.unknown++;
       }
 
+      // Track Bins
+      if (card.bin) {
+        binCounts[card.bin] = (binCounts[card.bin] || 0) + 1;
+      }
+
+      // Track metadata (Country, Bank, Level)
+      if (card.metadata.country) {
+        countryCounts[card.metadata.country] = (countryCounts[card.metadata.country] || 0) + 1;
+      }
+      if (card.metadata.bankName) {
+        bankCounts[card.metadata.bankName] = (bankCounts[card.metadata.bankName] || 0) + 1;
+      }
+      if (card.cardLevel && card.cardLevel !== 'UNKNOWN') {
+        levelCounts[card.cardLevel] = (levelCounts[card.cardLevel] || 0) + 1;
+      }
+
       if (card.cardNumber) {
         if (seenCards.has(card.cardNumber)) {
           duplicates++;
@@ -126,6 +153,17 @@ export default function App() {
         }
       }
     }
+
+    // Helper to get top N from a record
+    const getTopN = (record: Record<string, number>, n: number) => {
+      return Object.entries(record)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, n)
+        .reduce((acc, [key, val]) => {
+          acc[key] = val;
+          return acc;
+        }, {} as Record<string, number>);
+    };
 
     return {
       total: allParsedCards.length,
@@ -137,11 +175,17 @@ export default function App() {
       duplicates,
       amex,
       brandCounts,
+      topBins: getTopN(binCounts, 10), // Top 10 Bins
+      countries: getTopN(countryCounts, 10),
+      banks: getTopN(bankCounts, 10),
+      levels: getTopN(levelCounts, 10),
     };
   }, [allParsedCards]);
 
   // Filtered and Sorted cards for table view
   const visibleCards = useMemo(() => {
+    const q = deferredSearchQuery.trim().toLowerCase();
+    
     const filtered = allParsedCards.filter((card) => {
       // BIN filter
       if (binFilter && !card.cardNumber.startsWith(binFilter)) {
@@ -161,8 +205,7 @@ export default function App() {
       }
 
       // Search query filter
-      if (deferredSearchQuery.trim()) {
-        const q = deferredSearchQuery.toLowerCase().trim();
+      if (q) {
         const numMatch = card.cardNumber.toLowerCase().includes(q);
         const binMatch = card.bin.toLowerCase().includes(q);
         const brandMatch = card.brand.toLowerCase().includes(q);
@@ -191,16 +234,80 @@ export default function App() {
       return true;
     });
 
-    return sortCardRecords(filtered, sortOption);
-  }, [allParsedCards, activeFilter, selectedBrandFilter, searchQuery, sortOption, binFilter]);
+    // Enrich with live BIN data if available
+    const enriched = filtered.map(card => {
+      if (!card.bin) return card;
+      const liveData = liveBinData[card.bin] || liveBinData[card.bin.substring(0,6)];
+      if (liveData) {
+        return {
+          ...card,
+          metadata: {
+            ...card.metadata,
+            bankName: liveData.bank?.name || card.metadata.bankName,
+            country: liveData.country?.alpha2 || card.metadata.country,
+          },
+          cardLevel: liveData.brand || card.cardLevel,
+          brand: mapSchemeToBrand(liveData.scheme) || card.brand
+        };
+      }
+      return card;
+    });
+
+    return sortCardRecords(enriched, sortOption);
+  }, [allParsedCards, activeFilter, selectedBrandFilter, searchQuery, sortOption, binFilter, liveBinData]);
 
   // Output cards (clean list of active / non-expired and valid cards)
   const cleanedCards = useMemo(() => {
     const cleanList = allParsedCards.filter(
       (c) => c.status !== 'expired' && c.status !== 'invalid'
     );
-    return sortCardRecords(cleanList, sortOption);
-  }, [allParsedCards, sortOption]);
+    
+    const enriched = cleanList.map(card => {
+      if (!card.bin) return card;
+      const liveData = liveBinData[card.bin] || liveBinData[card.bin.substring(0,6)];
+      if (liveData) {
+        return {
+          ...card,
+          metadata: {
+            ...card.metadata,
+            bankName: liveData.bank?.name || card.metadata.bankName,
+            country: liveData.country?.alpha2 || card.metadata.country,
+          },
+          cardLevel: liveData.brand || card.cardLevel,
+          brand: mapSchemeToBrand(liveData.scheme) || card.brand
+        };
+      }
+      return card;
+    });
+
+    return sortCardRecords(enriched, sortOption);
+  }, [allParsedCards, sortOption, liveBinData]);
+
+  // Automatically save parsing history to Firestore (with a 3-second debounce to avoid spam)
+  useEffect(() => {
+    if (stats.total === 0) return;
+
+    const timer = setTimeout(() => {
+      saveParsingHistory({
+        totalCards: stats.total,
+        valid: stats.valid,
+        expired: stats.expired,
+        expiring: stats.expiring,
+        invalid: stats.invalid,
+        luhnFailed: stats.luhnFailed,
+        duplicates: stats.duplicates,
+        amex: stats.amex,
+        brandCounts: stats.brandCounts,
+        topBins: stats.topBins,
+        countries: stats.countries,
+        banks: stats.banks,
+        levels: stats.levels,
+        language
+      }).catch(err => console.error('Error auto-saving history:', err));
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [stats, language]);
 
   // Helper to trigger feedback toast
   const showToast = (msg: string) => {
@@ -341,6 +448,44 @@ export default function App() {
         ? `${removedCount}টি ডুপ্লিকেট কার্ড সরানো হয়েছে।`
         : `Removed ${removedCount} duplicate cards.`
     );
+  };
+
+  // Action: Fetch Live BIN Details
+  const handleEnrichVisibleBins = async () => {
+    if (isEnriching) return;
+    setIsEnriching(true);
+    showToast(language === 'bn' ? 'লাইভ বিন তথ্য আনা হচ্ছে...' : 'Fetching live BIN data from binlist.net...');
+
+    const uniqueBins = new Set<string>();
+    visibleCards.forEach(c => {
+      if (c.bin && c.bin.length >= 6) uniqueBins.add(c.bin);
+    });
+
+    const binsToFetch = Array.from(uniqueBins).filter(b => !liveBinData[b] && !liveBinData[b.substring(0,6)]);
+    
+    if (binsToFetch.length === 0) {
+      showToast(language === 'bn' ? 'সব কার্ডের বিন তথ্য আগেই আনা হয়েছে।' : 'All visible cards already have cached BIN data.');
+      setIsEnriching(false);
+      return;
+    }
+
+    let fetched = 0;
+    const newBinData = { ...liveBinData };
+
+    for (const bin of binsToFetch) {
+      const data = await fetchBinDetails(bin);
+      if (data) {
+        newBinData[bin] = data;
+        // Progressively update so UI updates during fetch
+        setLiveBinData({ ...newBinData });
+      }
+      fetched++;
+      // Sleep slightly to respect rate limit (approx 1 req/sec)
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    showToast(language === 'bn' ? `বিন তথ্য আনা সম্পন্ন হয়েছে (${fetched} টি)।` : `Enrichment complete. Fetched data for ${fetched} unique BIN(s).`);
+    setIsEnriching(false);
   };
 
   // Action: Remove Invalid Cards (corrupted length, failed checksum, bad date)
@@ -571,6 +716,8 @@ export default function App() {
           onShuffle={handleShuffle}
           binFilter={binFilter}
           onBinFilterChange={setBinFilter}
+          onEnrichBinData={handleEnrichVisibleBins}
+          isEnriching={isEnriching}
         />
 
         {/* Interactive Cards Table */}

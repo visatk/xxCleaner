@@ -11,6 +11,7 @@ import {
   CreditCard,
   ArrowUpDown,
   Shuffle,
+  Globe,
 } from 'lucide-react';
 import { FilterStatus, Language, SortOption } from '../types/card';
 import { translations } from '../utils/translations';
@@ -40,6 +41,8 @@ interface ActionToolbarProps {
   onShuffle: () => void;
   binFilter: string;
   onBinFilterChange: (bin: string) => void;
+  onEnrichBinData?: () => void;
+  isEnriching?: boolean;
 }
 
 export const ActionToolbar: React.FC<ActionToolbarProps> = ({
@@ -67,6 +70,8 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
   onShuffle,
   binFilter,
   onBinFilterChange,
+  onEnrichBinData,
+  isEnriching
 }) => {
   const t = translations[language];
 
@@ -150,6 +155,27 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
               <span>{t.removeDuplicatesBtn}</span>
               <span className="font-mono text-xs font-bold tabular-nums">
                 ({duplicateCount})
+              </span>
+            </button>
+          )}
+
+          {/* Enrich BIN Data */}
+          {onEnrichBinData && (
+            <button
+              onClick={onEnrichBinData}
+              disabled={isEnriching}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors border ${
+                isEnriching
+                  ? 'text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/20 cursor-not-allowed border-indigo-100/50 dark:border-indigo-800/30'
+                  : 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800/60'
+              }`}
+              title="Fetch live BIN details (Bank, Country, Level) from binlist.net"
+            >
+              <Globe className={`w-3.5 h-3.5 ${isEnriching ? 'text-indigo-400 animate-spin' : 'text-indigo-600'}`} />
+              <span>
+                {isEnriching
+                  ? (language === 'bn' ? 'তথ্য আনা হচ্ছে...' : 'Fetching...')
+                  : (language === 'bn' ? 'লাইভ বিন তথ্য' : 'Live BIN Data')}
               </span>
             </button>
           )}
