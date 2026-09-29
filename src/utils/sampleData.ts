@@ -1,0 +1,14 @@
+export const USER_EXACT_SAMPLE = `4622390770098080|02|2026|865|45.8|70 Leonard St||Bayswater|VIC|AU|3153|+61 404 896 885|tom-1023@hotmail.com|2001:4479:6106:6800:d489:af19:2b50:ccb5   5163610220824914|09|2028|936|47.88|"Unit 8, 49 Georgina St"||Woody Point|QLD|AU|4019|0400411186|wayneroy1974@gmail.com|1.123.68.208   4351420028541842|01|2026|437|34.04|14022 127th Place Northeast||Kirkland|WA|US|98034|9414472441|aprilmarcuzzo@gmail.com|50.47.224.164   377481018765432|10|2028|8842|85.00|350 5th Ave||New York|NY|US|10118|+1 212 555 0199|amex_holder@corporate.com|198.51.100.22`;
+
+export const EXTENDED_DEMO_SAMPLE = `4622390770098080|02|2026|865|45.8|70 Leonard St||Bayswater|VIC|AU|3153|+61 404 896 885|tom-1023@hotmail.com|2001:4479:6106:6800:d489:af19:2b50:ccb5
+5163610220824914|09|2028|936|47.88|"Unit 8, 49 Georgina St"||Woody Point|QLD|AU|4019|0400411186|wayneroy1974@gmail.com|1.123.68.208
+377481018765432|10|2028|8842|85.00|350 5th Ave||New York|NY|US|10118|+1 212 555 0199|amex_vip@centurion.com|198.51.100.22
+341234567890123|04|2025|4321|Amex Corporate|Chicago|IL|US|60601|+1 312 555 0144|expired_amex@corp.com|64.233.160.1
+4351420028541842|01|2026|437|34.04|14022 127th Place Northeast||Kirkland|WA|US|98034|9414472441|aprilmarcuzzo@gmail.com|50.47.224.164
+4506306931520284|11|2028|133|Bank Dhofar|Muscat|Oman|OM|112|+968 9123 4567|user1@omantel.net.om|82.178.44.12
+5143772021962577|09|26|230|Bancorp Bank|Wilmington|DE|US|19801|+1 302 555 0192|johndoe@gmail.com|73.14.99.120
+376620479312345|06|2030|9012|Rua Boa Vista||Linhares|ES|BR|58020|+55 27 9999 8888|brazil_amex@uol.com.br|187.100.22.4
+4111111111111112|05|2028|123|Fake Bank|Invalid Luhn Checksum Test Line|||US||||
+3774810187654321|08|2029|123|Malformed Amex Length Test (16 digits instead of 15)|||||||
+5532530028961234|14|2028|999|Corrupted Month 14 Test Line|||||||
+6011234567890123|12|2029|456|Discover Bank|Phoenix|AZ|US|85001|+1 602 555 0122|discover_user@gmail.com|72.14.200.5`;

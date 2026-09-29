@@ -1,0 +1,6 @@
+{
+  "name": "Card Cleaner & Expired Card Remover",
+  "description": "An advanced batch card validator and cleaner to detect, filter, and remove expired cards with instant export and statistics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
